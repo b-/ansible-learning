@@ -1,0 +1,79 @@
+- hosts: ansible-testbed.local
+  become: true
+  become_user: root
+
+  tasks:
+  - name: Upgrade packages
+    apt:
+      update_cache: yes
+      name: "*"
+      state: latest
+      force_apt_get: true
+
+  - name: Install various useful packages
+    apt:
+      name:
+      - vim
+      - nginx-full
+
+      state: present
+      force_apt_get: true
+
+  - name: Configure Nginx site
+    copy:
+      content: |
+        server {
+                listen 8080 default_server;
+                listen [::]:8080 default_server;
+
+                root /var/www/ansible-www;
+
+                index index.html;
+
+                server_name _;
+
+                location / {
+                        # First attempt to serve request as file, then
+                        # as directory, then fall back to displaying a 404.
+                        try_files $uri $uri/ =404;
+                }
+
+                # deny access to .htaccess files, if Apache's document root
+                # concurs with nginx's one
+                #
+                location ~ /\.ht {
+                        deny all;
+                }
+        }
+      dest: /etc/nginx/sites-available/port8080
+
+  - name: Make ansible-www folder
+    file:
+      path: /var/www/ansible-www
+      state: directory
+
+  - name: Add index.html to ansible-www
+    copy:
+      content: |
+        <html>
+          <head>
+            <title>Ansible was here</title>
+          </head>
+          <body>
+            This web server was deployed with Ansible. It better fucking work.
+          </body>
+        </html>
+      dest: /var/www/ansible-www/index.html
+
+  - name: Link from sites-available to sites-enabled
+    file:
+      src: /etc/nginx/sites-available/port8080
+      dest: /etc/nginx/sites-enabled/port8080
+      state: link
+
+  - name: Reload Nginx
+    #todo: only reload nginx if change
+    systemd:
+      state: reloaded
+      name: nginx
+

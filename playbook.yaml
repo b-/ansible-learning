@@ -46,6 +46,7 @@
                 }
         }
       dest: /etc/nginx/sites-available/port8080
+    register: nginx_site
 
   - name: Make ansible-www folder
     file:
@@ -70,10 +71,10 @@
       src: /etc/nginx/sites-available/port8080
       dest: /etc/nginx/sites-enabled/port8080
       state: link
+    register: nginx_site_link
 
   - name: Reload Nginx
-    #todo: only reload nginx if change
     systemd:
       state: reloaded
       name: nginx
-
+    when: nginx_site.changed or nginx_site_link.changed
